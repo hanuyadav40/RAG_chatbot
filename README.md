@@ -1,17 +1,18 @@
-# RAG Chatbot with Conversational Memory
+# DocMind — Conversational RAG Chatbot
 
-A Retrieval-Augmented Generation (RAG) chatbot built with LangChain that supports conversational memory for follow-up questions. Features FastAPI backend and Streamlit frontend with document upload capabilities.
+A Retrieval-Augmented Generation (RAG) chatbot built with LangChain that supports conversational memory for follow-up questions. Features a FastAPI backend and Streamlit frontend with document upload capabilities.
 
 ---
 
 ## 🚀 Features
 
-- **Document Upload**: Supports PDF, DOCX, HTML files (200MB limit per file)
+- **Document Upload**: Supports PDF, DOCX, HTML files
 - **Conversational Memory**: Maintains context for follow-up questions
-- **Multiple Models**: Choose between GPT-4o-mini and other model options
+- **Free LLM Models**: Powered by OpenRouter — no paid API key needed
+- **Local Embeddings**: HuggingFace `all-MiniLM-L6-v2` runs fully offline
 - **Vector Storage**: Efficient document retrieval with ChromaDB
 - **Interactive API**: FastAPI backend with Swagger documentation
-- **LangSmith Integration**: Built-in tracing and monitoring
+- **LangSmith Integration**: Built-in tracing and monitoring (optional)
 
 ---
 
@@ -20,43 +21,43 @@ A Retrieval-Augmented Generation (RAG) chatbot built with LangChain that support
 Create a `.env` file in the root with the following variables:
 
 ```env
-OPENAI_API_KEY=your_openai_api_key
-LANGSMITH_API_KEY=your_langsmith_api_key
-````
+OPENROUTER_API_KEY=your_openrouter_api_key
+
+# Optional
+LANGCHAIN_API_KEY=your_langsmith_api_key
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_PROJECT="rag-chatbot"
+```
+
+Get a free OpenRouter API key at [openrouter.ai/keys](https://openrouter.ai/keys).
 
 ---
 
 ## 📦 Project Structure
 
 ```
-RAG-CHATBOT/
+DocMind/
 ├── api/                         # FastAPI backend server
-│   ├── __pycache__/             # Python bytecode cache
 │   ├── chroma_db/               # ChromaDB vector storage
 │   ├── app.log                  # Logging file
-│   ├── chroma_utils.py          # ChromaDB utilities
+│   ├── chroma_utils.py          # ChromaDB & embedding utilities
 │   ├── db_utils.py              # Chat history & metadata DB logic
-│   ├── langchain_utils.py       # LangChain RAG pipeline
+│   ├── langchain_utils.py       # LangChain RAG pipeline (LCEL)
 │   ├── main.py                  # FastAPI entry point
 │   ├── pydantic_models.py       # Request/response validation
 │   └── rag_app.db               # SQLite DB
 ├── app/                         # Streamlit frontend
-│   ├── __pycache__/             # Python bytecode cache
 │   ├── api_utils.py             # FastAPI client utils
 │   ├── chat_interface.py        # Chat UI
 │   ├── sidebar.py               # File upload & model switch
-│   └── streamlit_app.py         # Streamlit app
+│   └── streamlit_app.py         # Streamlit entry point
 ├── docs/                        # Sample documents
 ├── documentation/               # Guides & screenshots
-│   ├── screenshots/             # UI screenshots
-│   ├── api_reference.md         # API docs
-│   └── user_guide.md            # Manual
-├── .env                         # Env variables
-├── .gitignore                   # Git ignore rules
-├── LICENSE                      # MIT License
-├── notes.txt                    # Dev notes
-├── README.md                    # This file
-└── requirements.txt             # Dependencies
+├── .env.example                 # Environment variable template
+├── .gitignore
+├── LICENSE
+├── README.md
+└── requirements.txt
 ```
 
 ---
@@ -66,16 +67,15 @@ RAG-CHATBOT/
 ### 🔧 Prerequisites
 
 * Python 3.9+
-* OpenAI API Key
-* LangSmith API Key (optional)
+* OpenRouter API Key (free — [openrouter.ai/keys](https://openrouter.ai/keys))
 
 ### 🛠 Installation
 
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/YOUR-USERNAME/rag-chatbot.git
-   cd rag-chatbot
+   git clone https://github.com/YOUR-USERNAME/docmind.git
+   cd docmind
    ```
 
 2. **Install dependencies**
@@ -86,10 +86,9 @@ RAG-CHATBOT/
 
 3. **Configure environment**
 
-   Create a `.env` file using the sample and add your keys:
-
    ```bash
    cp .env.example .env
+   # Edit .env and add your OpenRouter API key
    ```
 
 4. **Run the FastAPI backend**
@@ -115,18 +114,33 @@ RAG-CHATBOT/
 
 ---
 
+## 🤖 Supported Models
+
+All models are **free** via OpenRouter:
+
+| Model | Provider |
+|---|---|
+| `nvidia/nemotron-3-ultra-550b-a55b:free` | NVIDIA (default) |
+| `google/gemini-2.0-flash-exp:free` | Google |
+| `meta-llama/llama-3.2-3b-instruct:free` | Meta |
+| `mistralai/mistral-7b-instruct:free` | Mistral AI |
+
+Switch models anytime from the sidebar dropdown.
+
+---
+
 ## 📚 Usage Guide
 
 ### 📤 Upload Documents
 
 1. Open the Streamlit UI
 2. Use the sidebar to upload PDF, DOCX, or HTML files
-3. Uploaded docs are indexed into ChromaDB
+3. Uploaded docs are chunked and indexed into ChromaDB
 
 ### 💬 Chat with Documents
 
 1. Ask a question related to the uploaded content
-2. Ask follow-up questions — context is remembered
+2. Ask follow-up questions — context is remembered per session
 3. Switch models via the sidebar dropdown
 
 ---
@@ -142,7 +156,7 @@ upload_res = requests.post('http://localhost:8000/upload-doc', files=files)
 
 # Chat with the document
 chat_payload = {
-    "message": "What is this document about?",
+    "question": "What is this document about?",
     "session_id": "user123"
 }
 chat_res = requests.post('http://localhost:8000/chat', json=chat_payload)
@@ -156,7 +170,7 @@ print(chat_res.json())
 | Endpoint      | Method | Description                  |
 | ------------- | ------ | ---------------------------- |
 | `/chat`       | POST   | Chat with uploaded documents |
-| `/upload-doc` | POST   | Upload and index documents   |
+| `/upload-doc` | POST   | Upload and index a document  |
 | `/list-docs`  | GET    | List all uploaded documents  |
 | `/delete-doc` | POST   | Delete a specific document   |
 
@@ -164,38 +178,19 @@ print(chat_res.json())
 
 ## 🧠 Architecture Overview
 
-1. **Document Ingestion**: Files are split into text chunks
-2. **Embedding**: Text is embedded using OpenAI embeddings
-3. **Storage**: Embeddings are stored in ChromaDB
-4. **Retrieval**: Relevant chunks are fetched for user queries
-5. **Generation**: LangChain passes context and query to LLM
-6. **Memory**: Session IDs preserve conversation history
-
----
-
-## 🛠 Environment Setup
-
-1. **Copy template and configure**
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Edit `.env` and add keys**
-
-   * Get your OpenAI API key from: [https://platform.openai.com/account/api-keys](https://platform.openai.com/account/api-keys)
-   * (Optional) Get LangSmith API key from: [https://smith.langchain.com/](https://smith.langchain.com/)
-
-3. **Keep `.env` private**
-
-   `.env` is included in `.gitignore` to avoid committing secrets.
+1. **Document Ingestion**: Files are split into 1000-character chunks (200 overlap)
+2. **Embedding**: Text is embedded locally using HuggingFace `all-MiniLM-L6-v2`
+3. **Storage**: Embeddings are persisted in ChromaDB
+4. **Retrieval**: Top-2 relevant chunks are fetched per query
+5. **Generation**: LangChain LCEL pipeline passes context + history to the LLM via OpenRouter
+6. **Memory**: Session IDs stored in SQLite preserve conversation history across requests
 
 ---
 
 ## 🔑 Required API Keys
 
-* **OPENAI\_API\_KEY**: Required for embeddings and completions
-* **LANGSMITH\_API\_KEY**: For request tracing and logging
+* **OPENROUTER\_API\_KEY**: Required for LLM completions (free tier available)
+* **LANGCHAIN\_API\_KEY**: Optional — for LangSmith tracing and monitoring
 
 ---
 
@@ -222,38 +217,16 @@ We welcome contributions!
 
 ## 📜 License
 
-This project is licensed under the MIT License.
-
-```
-MIT License
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-...
-```
-
-See the full [LICENSE](LICENSE) file for more details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 🙏 Acknowledgments
 
 * Built with [LangChain](https://www.langchain.com/)
+* LLM routing by [OpenRouter](https://openrouter.ai/)
+* Embeddings by [HuggingFace](https://huggingface.co/)
 * Vector storage by [ChromaDB](https://www.trychroma.com/)
 * UI by [Streamlit](https://streamlit.io/)
 * Backend by [FastAPI](https://fastapi.tiangolo.com/)
 * Observability via [LangSmith](https://smith.langchain.com/)
-
----
-
-## 📬 Contact
-
-Have feedback, issues, or ideas?
-
-* Open an issue on GitHub
-* Submit a pull request
-* Contact the maintainer (aryanmahawar205@gmail.com)
