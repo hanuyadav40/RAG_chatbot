@@ -36,7 +36,7 @@ Get a free OpenRouter API key at [openrouter.ai/keys](https://openrouter.ai/keys
 ## 📦 Project Structure
 
 ```
-DocMind/
+RAG_chatbot/
 ├── api/                         # FastAPI backend server
 │   ├── chroma_db/               # ChromaDB vector storage
 │   ├── app.log                  # Logging file
