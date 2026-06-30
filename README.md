@@ -74,8 +74,8 @@ RAG_chatbot/
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/YOUR-USERNAME/docmind.git
-   cd docmind
+   git clone https://github.com/hanuyadav40/RAG_chatbot.git
+   cd RAG_chatbot
    ```
 
 2. **Install dependencies**
