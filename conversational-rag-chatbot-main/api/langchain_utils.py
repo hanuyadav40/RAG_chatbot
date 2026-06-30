@@ -3,10 +3,8 @@ load_dotenv()
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from typing import List
-from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.runnables import RunnableLambda
 import os
 from chroma_utils import vectorstore
 
@@ -35,9 +33,46 @@ qa_prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}")
 ])
 
-def get_rag_chain(model="gpt-4o-mini"):
-    llm = ChatOpenAI(model=model)
-    history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
-    question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)    
-    return rag_chain
+def _format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+def _convert_chat_history(history):
+    messages = []
+    for msg in history:
+        if msg["role"] == "human":
+            messages.append(HumanMessage(content=msg["content"]))
+        else:
+            messages.append(AIMessage(content=msg["content"]))
+    return messages
+
+def get_rag_chain(model="nvidia/nemotron-3-ultra-550b-a55b:free"):
+    llm = ChatOpenAI(
+        model=model,
+        openai_api_key=os.environ["OPENROUTER_API_KEY"],
+        openai_api_base="https://openrouter.ai/api/v1",
+    )
+
+    contextualize_q_chain = contextualize_q_prompt | llm | output_parser
+
+    def run_chain(inputs):
+        chat_history = _convert_chat_history(inputs.get("chat_history", []))
+        question = inputs["input"]
+
+        if chat_history:
+            question = contextualize_q_chain.invoke({
+                "input": question,
+                "chat_history": chat_history,
+            })
+
+        docs = retriever.invoke(question)
+        context = _format_docs(docs)
+
+        answer = (qa_prompt | llm | output_parser).invoke({
+            "input": inputs["input"],
+            "context": context,
+            "chat_history": chat_history,
+        })
+
+        return {"answer": answer}
+
+    return RunnableLambda(run_chain)

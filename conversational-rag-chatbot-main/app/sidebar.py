@@ -5,7 +5,12 @@ from api_utils import upload_document, list_documents, delete_document
 
 def display_sidebar():
     # Model selection
-    model_options = ["gpt-4o", "gpt-4o-mini"]
+    model_options = [
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3.2-3b-instruct:free",
+        "mistralai/mistral-7b-instruct:free",
+    ]
     st.sidebar.selectbox("Select Model", options=model_options, key="model")
 
     # Document upload
